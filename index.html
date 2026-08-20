@@ -329,7 +329,7 @@ const DEFAULT_LIMITS = {
 };
 
 const DEFAULT_LEGS = [
-  {from:'', to:'', gal:0, burn:0, takeoff:0, pax:0, bags:0},
+  {from:'BMG', to:'', gal:0, burn:0, takeoff:0, pax:0, bags:0},
   {from:'', to:'', gal:0, burn:0, takeoff:null, pax:0, bags:0},
   {from:'', to:'', gal:0, burn:0, takeoff:null, pax:0, bags:0},
   {from:'', to:'', gal:0, burn:0, takeoff:null, pax:0, bags:0},
@@ -702,7 +702,7 @@ function recalc(){
 
 function clearFlightData(){
   legs.forEach((leg,i)=>{
-    leg.from = '';
+    leg.from = (i===0) ? 'BMG' : '';
     leg.to = '';
     leg.gal = 0;
     leg.lbs = 0;
