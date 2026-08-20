@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1117">
+<title>Fuel Burn Calculator</title>
+<style>
+  :root{
+    --bg:#0d1117;
+    --panel:#151b23;
+    --panel-border:#26303b;
+    --amber:#ffb300;
+    --amber-dim:#8a6200;
+    --text:#e6edf3;
+    --text-dim:#8b98a5;
+    --green:#3fb950;
+    --red:#f85149;
+    --input-bg:#0a0e13;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding:16px;
+    -webkit-text-size-adjust:100%;
+  }
+  .mono{ font-family:"SF Mono", "Menlo", "Consolas", monospace; }
+  .wrap{ max-width:1100px; margin:0 auto; }
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+  }
+  h1{
+    font-size:19px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    margin:0;
+    color:var(--amber);
+    font-weight:700;
+  }
+  h1 span{ color:var(--text-dim); font-weight:400; text-transform:none; letter-spacing:0; font-size:13px; display:block; margin-top:2px;}
+
+  button.clear{
+    background:transparent;
+    border:1px solid var(--red);
+    color:var(--red);
+    padding:9px 16px;
+    border-radius:6px;
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+  button.clear:active{ background:var(--red); color:#0d1117; }
+  button.clear.confirming{ background:var(--red); color:#0d1117; }
+
+  .tail-toggles{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .tail-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--input-bg);
+    border:1px solid var(--panel-border);
+    border-radius:999px;
+    padding:6px 12px;
+    font-size:12px;
+    font-family:"SF Mono","Menlo","Consolas",monospace;
+    cursor:pointer;
+    user-select:none;
+    color:var(--text-dim);
+  }
+  .tail-chip input{
+    width:14px;
+    height:14px;
+    padding:0;
+    accent-color:var(--amber);
+  }
+  .tail-chip.on{
+    border-color:var(--amber-dim);
+    color:var(--text);
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:10px;
+    padding:14px;
+    margin-bottom:16px;
+    overflow-x:auto;
+  }
+  .panel h2{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--amber);
+    margin:0 0 10px 0;
+    font-weight:700;
+  }
+  table{ border-collapse:collapse; width:100%; min-width:560px; }
+  th,td{
+    padding:6px 6px;
+    text-align:center;
+    font-size:13px;
+    white-space:nowrap;
+  }
+  th{
+    color:var(--text-dim);
+    font-weight:600;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    border-bottom:1px solid var(--panel-border);
+  }
+  td.label{ color:var(--text-dim); text-align:left; font-size:12px; }
+  tr + tr td{ border-top:1px solid #1c232c; }
+
+  input{
+    width:64px;
+    background:var(--input-bg);
+    border:1px solid var(--panel-border);
+    color:var(--text);
+    padding:6px 4px;
+    border-radius:5px;
+    font-size:13px;
+    text-align:center;
+    font-family:inherit;
+  }
+  input:focus{
+    outline:none;
+    border-color:var(--amber);
+  }
+  input.txt{ width:52px; text-transform:uppercase; }
+  input.wide{ width:78px; }
+
+  .computed{
+    font-weight:600;
+    display:inline-block;
+    min-width:52px;
+    padding:2px 6px;
+    border-radius:4px;
+  }
+  .computed.ok{
+    color:#1a7a35;
+    background:#c6efce;
+  }
+  .computed.neg{
+    color:#9c0006;
+    background:#ffc7ce;
+  }
+  .computed.over{
+    color:#9c0006;
+    background:#ffc7ce;
+  }
+
+  footer{
+    color:var(--text-dim);
+    font-size:11px;
+    text-align:center;
+    margin-top:6px;
+    line-height:1.5;
+  }
+
+  /* When only one aircraft is visible, keep tables compact and left-aligned */
+  .single-tail table{
+    min-width:0;
+    width:auto;
+    max-width:100%;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Fuel Burn Calculator<span>Route / payload / limits</span></h1>
+    <button class="clear" id="clearBtn">Clear</button>
+  </header>
+
+  <div class="panel" id="tailPicker">
+    <h2>Aircraft Shown</h2>
+    <div class="tail-toggles" id="tailToggles"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Route &amp; Fuel</h2>
+    <table class="mono">
+      <thead>
+        <tr>
+          <th>From</th><th>To</th><th>Gal</th><th>Lbs</th><th>Takeoff</th><th>Burn</th><th>Landing</th>
+        </tr>
+      </thead>
+      <tbody id="routeBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="totalsPanel">
+    <h2>Total T/O and LDG Weights</h2>
+    <table class="mono">
+      <thead>
+        <tr id="totalsHeadRow"></tr>
+      </thead>
+      <tbody id="totalsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="payloadPanel">
+    <h2>Available Payloads</h2>
+    <table class="mono">
+      <thead>
+        <tr id="payloadHeadRow"></tr>
+      </thead>
+      <tbody id="payloadBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Aircraft Limits</h2>
+    <table class="mono">
+      <thead><tr id="limitsHeadRow"><th></th></tr></thead>
+      <tbody id="limitsBody"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    Fuel weight = gallons &times; 6.7 lbs/gal.<br>
+    Available payload = Limit − (BOW + Pax×200 + Bags + Fuel weight).<br>
+    Green = within limit (≥ 0 remaining). Red = over limit (&lt; 0).<br>
+    Clear resets route, fuel, and payload entries — aircraft limits are left as set.<br>
+    <span id="offlineStatus"></span>
+  </footer>
+</div>
+
+<script>
+const TAILS = ['N604GW','N500M','N109GX','N999ZG'];
+const DEFAULT_LIMITS = {
+  N604GW:{bow:27332, mtow:48200, mlw:38000},
+  N500M: {bow:27593, mtow:48200, mlw:38000},
+  N109GX:{bow:14605, mtow:24650, mlw:20700},
+  N999ZG:{bow:10417, mtow:15000, mlw:15000},
+};
+
+const DEFAULT_LEGS = [
+  {from:'BMG', to:'LAF', gal:0,   burn:1000, takeoff:6500, pax:0, bags:0},
+  {from:'',    to:'RDU', gal:0,   burn:2200, takeoff:null, pax:2, bags:0},
+  {from:'',    to:'LAF', gal:400, burn:2400, takeoff:null, pax:4, bags:0},
+  {from:'',    to:'BMG', gal:0,   burn:1000, takeoff:null, pax:0, bags:0},
+  {from:'',    to:'',    gal:0,   burn:0,    takeoff:null, pax:0, bags:0},
+  {from:'',    to:'',    gal:0,   burn:0,    takeoff:null, pax:0, bags:0},
+];
+
+let legs, limits, visibleTails;
+let suppressRecalc = false; // prevents feedback loops when editing landing ↔ burn
+
+function loadDefaults(){
+  legs = DEFAULT_LEGS.map(l => ({...l, lbs: l.gal * 6.7}));
+  limits = JSON.parse(JSON.stringify(DEFAULT_LIMITS));
+  visibleTails = new Set(TAILS);
+}
+
+function buildTailToggles(){
+  const wrap = document.getElementById('tailToggles');
+  wrap.innerHTML = TAILS.map(t => `
+    <label class="tail-chip ${visibleTails.has(t) ? 'on':''}" data-chip="${t}">
+      <input type="checkbox" data-tail-toggle="${t}" ${visibleTails.has(t) ? 'checked':''}>
+      ${t}
+    </label>
+  `).join('');
+  wrap.addEventListener('change', e=>{
+    const t = e.target.dataset.tailToggle;
+    if(!t) return;
+    if(e.target.checked) visibleTails.add(t); else visibleTails.delete(t);
+    e.target.closest('.tail-chip').classList.toggle('on', e.target.checked);
+    applyTailVisibility();
+    // Rebuild headers so column order reflects current selection when only one is shown
+    buildTotalsHead();
+    buildPayloadHead();
+    buildLimitsGrid();
+    recalc();
+  });
+}
+
+function applyTailVisibility(){
+  const single = visibleTails.size === 1;
+  document.getElementById('payloadPanel').classList.toggle('single-tail', single);
+  document.getElementById('totalsPanel').classList.toggle('single-tail', single);
+
+  document.querySelectorAll('[data-tail]').forEach(el=>{
+    const show = visibleTails.has(el.dataset.tail);
+    el.style.display = show ? '' : 'none';
+  });
+}
+
+function buildRouteTable(){
+  const body = document.getElementById('routeBody');
+  body.innerHTML = '';
+  legs.forEach((leg,i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i===0
+          ? `<input class="txt" data-role="from" data-i="${i}" value="${leg.from}">`
+          : `<span class="computed" id="from-${i}"></span>`}</td>
+      <td><input class="txt" data-role="to" data-i="${i}" value="${leg.to}"></td>
+      <td><input data-role="gal" data-i="${i}" value="${leg.gal.toFixed(1).replace(/\.0$/,'')}"></td>
+      <td><input data-role="lbs" data-i="${i}" value="${leg.lbs.toFixed(0)}"></td>
+      <td>${i===0
+          ? `<input class="wide" data-role="takeoff0" data-i="${i}" value="${leg.takeoff ?? 0}">`
+          : `<span class="computed" id="tko-${i}"></span>`}</td>
+      <td><input data-role="burn" data-i="${i}" value="${leg.burn}"></td>
+      <td><input class="wide" data-role="landing" data-i="${i}" value=""></td>
+    `;
+    body.appendChild(tr);
+  });
+  if(!body.dataset.wired){
+    body.addEventListener('input', onRouteInput);
+    body.dataset.wired = '1';
+  }
+}
+
+function onRouteInput(e){
+  const role = e.target.dataset.role;
+  const i = parseInt(e.target.dataset.i, 10);
+  if(isNaN(i)) return;
+
+  // Auto-capitalize text fields
+  if(role==='from' || role==='to'){
+    const start = e.target.selectionStart;
+    const end = e.target.selectionEnd;
+    e.target.value = e.target.value.toUpperCase();
+    e.target.setSelectionRange(start, end);
+    if(role==='from') legs[i].from = e.target.value;
+    if(role==='to') legs[i].to = e.target.value;
+  }
+
+  if(role==='gal'){
+    legs[i].gal = parseFloat(e.target.value) || 0;
+    legs[i].lbs = legs[i].gal * 6.7;
+    const lbsInput = document.querySelector(`[data-role="lbs"][data-i="${i}"]`);
+    if(lbsInput) lbsInput.value = legs[i].lbs.toFixed(0);
+  }
+  if(role==='lbs'){
+    legs[i].lbs = parseFloat(e.target.value) || 0;
+    legs[i].gal = legs[i].lbs / 6.7;
+    const galInput = document.querySelector(`[data-role="gal"][data-i="${i}"]`);
+    if(galInput) galInput.value = legs[i].gal.toFixed(1).replace(/\.0$/,'');
+  }
+  if(role==='burn'){
+    legs[i].burn = parseFloat(e.target.value) || 0;
+  }
+  if(role==='takeoff0'){
+    legs[0].takeoff = parseFloat(e.target.value) || 0;
+  }
+  if(role==='landing'){
+    // User is editing landing → back-calculate burn
+    const newLanding = parseFloat(e.target.value);
+    if(!isNaN(newLanding)){
+      suppressRecalc = true;
+      // Need current takeoff for this leg
+      const takeoff = (i===0) ? (legs[0].takeoff || 0) : getTakeoffForLeg(i);
+      const lbs = legs[i].lbs || 0;
+      if(i===0){
+        // Landing = Takeoff - Burn + Lbs  →  Burn = Takeoff + Lbs - Landing
+        legs[i].burn = takeoff + lbs - newLanding;
+      } else {
+        // Landing = Takeoff - Burn  →  Burn = Takeoff - Landing
+        legs[i].burn = takeoff - newLanding;
+      }
+      const burnInput = document.querySelector(`[data-role="burn"][data-i="${i}"]`);
+      if(burnInput) burnInput.value = legs[i].burn.toFixed(0);
+      suppressRecalc = false;
+    }
+  }
+
+  if(!suppressRecalc) recalc();
+}
+
+// Helper to get computed takeoff for a leg without full recalc side-effects
+function getTakeoffForLeg(i){
+  if(i===0) return legs[0].takeoff || 0;
+  // Walk previous legs
+  let tko = legs[0].takeoff || 0;
+  let ldg = tko - (legs[0].burn||0) + (legs[0].lbs||0);
+  for(let j=1; j<=i; j++){
+    tko = ldg + (legs[j].lbs||0);
+    ldg = tko - (legs[j].burn||0);
+  }
+  return tko;
+}
+
+function buildTotalsHead(){
+  const row = document.getElementById('totalsHeadRow');
+  // Group by aircraft: T/O then Ldg for each visible tail
+  const ordered = TAILS.filter(t => visibleTails.has(t));
+  row.innerHTML = `
+    <th></th>
+    ${ordered.map(t => `
+      <th data-tail="${t}">${t}<br>T/O</th>
+      <th data-tail="${t}">${t}<br>Ldg</th>
+    `).join('')}
+  `;
+}
+
+function buildTotalsTable(){
+  const body = document.getElementById('totalsBody');
+  body.innerHTML = '';
+  const ordered = TAILS.filter(t => visibleTails.has(t));
+  legs.forEach((leg,i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="label">Leg ${i+1}</td>
+      ${ordered.map(t => `
+        <td data-tail="${t}"><span class="computed" id="tot-to-${t}-${i}"></span></td>
+        <td data-tail="${t}"><span class="computed" id="tot-ldg-${t}-${i}"></span></td>
+      `).join('')}
+    `;
+    body.appendChild(tr);
+  });
+  applyTailVisibility();
+}
+
+function buildPayloadHead(){
+  const row = document.getElementById('payloadHeadRow');
+  const ordered = TAILS.filter(t => visibleTails.has(t));
+  row.innerHTML = `
+    <th></th><th>Pax</th><th>Bags</th>
+    ${ordered.map(t => `
+      <th data-tail="${t}">${t}<br>T/O</th>
+      <th data-tail="${t}">${t}<br>Ldg</th>
+    `).join('')}
+  `;
+}
+
+function buildPayloadTable(){
+  const body = document.getElementById('payloadBody');
+  body.innerHTML = '';
+  const ordered = TAILS.filter(t => visibleTails.has(t));
+  legs.forEach((leg,i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="label">Leg ${i+1}</td>
+      <td><input data-role="pax" data-i="${i}" value="${leg.pax}"></td>
+      <td><input data-role="bags" data-i="${i}" value="${leg.bags}"></td>
+      ${ordered.map(t => `
+        <td data-tail="${t}"><span class="computed" id="pay-to-${t}-${i}"></span></td>
+        <td data-tail="${t}"><span class="computed" id="pay-ldg-${t}-${i}"></span></td>
+      `).join('')}
+    `;
+    body.appendChild(tr);
+  });
+  if(!body.dataset.wired){
+    body.addEventListener('input', onPayloadInput);
+    body.dataset.wired = '1';
+  }
+  applyTailVisibility();
+}
+
+function onPayloadInput(e){
+  const role = e.target.dataset.role;
+  const i = parseInt(e.target.dataset.i, 10);
+  if(role==='pax') legs[i].pax = parseFloat(e.target.value) || 0;
+  if(role==='bags') legs[i].bags = parseFloat(e.target.value) || 0;
+  recalc();
+}
+
+function buildLimitsGrid(){
+  const headRow = document.getElementById('limitsHeadRow');
+  const ordered = TAILS.filter(t => visibleTails.has(t));
+  headRow.innerHTML = `<th></th>${ordered.map(t=>`<th data-tail="${t}">${t}</th>`).join('')}`;
+
+  const body = document.getElementById('limitsBody');
+  const fieldRow = (label, field) => `
+    <tr>
+      <td class="label">${label}</td>
+      ${ordered.map(t=>`<td data-tail="${t}"><input data-tail="${t}" data-field="${field}" value="${limits[t][field]}"></td>`).join('')}
+    </tr>`;
+  body.innerHTML = fieldRow('BOW','bow') + fieldRow('MTOW','mtow') + fieldRow('MLW','mlw');
+
+  // Re-bind listener (safe because we rebuild)
+  body.oninput = e=>{
+    const tail = e.target.dataset.tail, field = e.target.dataset.field;
+    if(!tail || !field) return;
+    limits[tail][field] = parseFloat(e.target.value) || 0;
+    recalc();
+  };
+  applyTailVisibility();
+}
+
+function setCell(id, value, opts = {}){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.remove('ok','neg','over');
+  if(value === null || value === undefined || value === ''){
+    el.textContent = '';
+    return;
+  }
+  el.textContent = (typeof value === 'number') ? value.toFixed(0) : value;
+  if(opts.ok !== undefined){
+    el.classList.toggle('ok', opts.ok);
+    el.classList.toggle('neg', !opts.ok);
+  }
+  if(opts.over) el.classList.add('over');
+}
+
+function hasLegData(i){
+  if(i === 0) return (legs[0].takeoff || 0) !== 0 || (legs[0].to && legs[0].to.trim()) || legs[0].burn;
+  return (legs[i].to && legs[i].to.trim()) || legs[i].burn || legs[i].gal;
+}
+
+function recalc(){
+  if(suppressRecalc) return;
+
+  const lbs = [], takeoff = [], landing = [];
+
+  for(let i=0;i<6;i++){
+    lbs[i] = legs[i].lbs;
+    if(i===0){
+      takeoff[i] = legs[0].takeoff || 0;
+      landing[i] = takeoff[i] - legs[i].burn + lbs[i];
+    } else {
+      if(legs[i].burn === 0 && !(legs[i].to && legs[i].to.trim())){
+        takeoff[i] = 0;
+      } else {
+        takeoff[i] = landing[i-1] + lbs[i];
+      }
+      landing[i] = takeoff[i] - legs[i].burn;
+    }
+
+    // auto FROM = previous leg's TO
+    if(i>0){
+      legs[i].from = legs[i-1].to;
+      const el = document.getElementById(`from-${i}`);
+      if(el) el.textContent = legs[i].from || '—';
+    }
+    if(i>0){
+      const tkoEl = document.getElementById(`tko-${i}`);
+      if(tkoEl) tkoEl.textContent = hasLegData(i) ? takeoff[i].toFixed(0) : '';
+    }
+
+    // Update landing input (only if user is not currently editing it)
+    const ldgInput = document.querySelector(`[data-role="landing"][data-i="${i}"]`);
+    if(ldgInput && document.activeElement !== ldgInput){
+      ldgInput.value = hasLegData(i) ? landing[i].toFixed(0) : '';
+    }
+  }
+
+  // Total weights and available payloads
+  const ordered = TAILS.filter(t => visibleTails.has(t));
+
+  for(let i=0;i<6;i++){
+    const paxW = (legs[i].pax || 0) * 200;
+    const bagsW = legs[i].bags || 0;
+    const active = hasLegData(i);
+
+    ordered.forEach(t=>{
+      const bow = limits[t].bow;
+      const mtow = limits[t].mtow;
+      const mlw = limits[t].mlw;
+
+      if(!active){
+        setCell(`tot-to-${t}-${i}`, '');
+        setCell(`tot-ldg-${t}-${i}`, '');
+        setCell(`pay-to-${t}-${i}`,  '');
+        setCell(`pay-ldg-${t}-${i}`, '');
+        return;
+      }
+
+      const totTo  = bow + paxW + bagsW + takeoff[i];
+      const totLdg = bow + paxW + bagsW + landing[i];
+
+      setCell(`tot-to-${t}-${i}`, totTo,  { over: totTo  > mtow });
+      setCell(`tot-ldg-${t}-${i}`, totLdg, { over: totLdg > mlw });
+
+      const availTo  = mtow - (bow + paxW + bagsW + takeoff[i]);
+      const availLdg = mlw  - (bow + paxW + bagsW + landing[i]);
+
+      setCell(`pay-to-${t}-${i}`,  availTo,  { ok: availTo  >= 0 });
+      setCell(`pay-ldg-${t}-${i}`, availLdg, { ok: availLdg >= 0 });
+    });
+  }
+}
+
+function clearFlightData(){
+  legs.forEach((leg,i)=>{
+    leg.from = '';
+    leg.to = '';
+    leg.gal = 0;
+    leg.lbs = 0;
+    leg.burn = 0;
+    leg.pax = 0;
+    leg.bags = 0;
+    if(i===0) leg.takeoff = 0;
+  });
+  buildRouteTable();
+  buildPayloadTable();
+  recalc();
+}
+
+const clearBtn = document.getElementById('clearBtn');
+let armed = false;
+let armTimer = null;
+
+clearBtn.addEventListener('click', ()=>{
+  if(!armed){
+    armed = true;
+    clearBtn.textContent = 'Tap again to clear';
+    clearBtn.classList.add('confirming');
+    clearTimeout(armTimer);
+    armTimer = setTimeout(()=>{
+      armed = false;
+      clearBtn.textContent = 'Clear';
+      clearBtn.classList.remove('confirming');
+    }, 3000);
+  } else {
+    clearTimeout(armTimer);
+    armed = false;
+    clearBtn.textContent = 'Clear';
+    clearBtn.classList.remove('confirming');
+    clearFlightData();
+  }
+});
+
+// ---------- Offline / PWA support ----------
+// Clean manifest (injected so we avoid broken data-URI in <head>)
+(function(){
+  const manifest = {
+    name: "Fuel Burn Calculator",
+    short_name: "Fuel Burn",
+    start_url: "./",
+    display: "standalone",
+    background_color: "#0d1117",
+    theme_color: "#0d1117",
+    icons: [{
+      src: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#0d1117" width="100" height="100"/><text y=".9em" font-size="80" x="10">✈</text></svg>'),
+      sizes: "any",
+      type: "image/svg+xml"
+    }]
+  };
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
+  document.head.appendChild(link);
+})();
+
+if('serviceWorker' in navigator){
+  const swCode = `
+    const CACHE = 'fuel-burn-v2';
+    self.addEventListener('install', e => {
+      self.skipWaiting();
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./','./index.html']).catch(()=>{})));
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(caches.keys().then(keys =>
+        Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      ));
+      self.clients.claim();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
+          const clone = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+          return resp;
+        }).catch(() => caches.match('./index.html')))
+      );
+    });
+  `;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).then(()=>{
+    const el = document.getElementById('offlineStatus');
+    if(el) el.textContent = 'Offline ready — works without signal after first load.';
+  }).catch(()=>{});
+}
+
+// ---------- Init ----------
+loadDefaults();
+buildTailToggles();
+buildRouteTable();
+buildTotalsHead();
+buildTotalsTable();
+buildPayloadHead();
+buildPayloadTable();
+buildLimitsGrid();
+recalc();
+</script>
+</body>
+</html>
