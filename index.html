@@ -383,6 +383,7 @@ function applyTailVisibility(){
 function buildRouteTable(){
   const body = document.getElementById('routeBody');
   body.innerHTML = '';
+  const blank0 = v => (v === 0 || v === '0' || v === null || v === undefined) ? '' : v;
   legs.forEach((leg,i) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -390,12 +391,12 @@ function buildRouteTable(){
           ? `<input class="txt" data-role="from" data-i="${i}" value="${leg.from}">`
           : `<span class="computed" id="from-${i}"></span>`}</td>
       <td><input class="txt" data-role="to" data-i="${i}" value="${leg.to}"></td>
-      <td><input data-role="gal" data-i="${i}" value="${leg.gal.toFixed(1).replace(/\.0$/,'')}"></td>
-      <td><input data-role="lbs" data-i="${i}" value="${leg.lbs.toFixed(0)}"></td>
+      <td><input data-role="gal" data-i="${i}" value="${blank0(leg.gal)}"></td>
+      <td><input data-role="lbs" data-i="${i}" value="${blank0(leg.lbs)}"></td>
       <td>${i===0
-          ? `<input class="wide" data-role="takeoff0" data-i="${i}" value="${leg.takeoff ?? 0}">`
+          ? `<input class="wide" data-role="takeoff0" data-i="${i}" value="${blank0(leg.takeoff ?? 0)}">`
           : `<span class="computed" id="tko-${i}"></span>`}</td>
-      <td><input data-role="burn" data-i="${i}" value="${leg.burn}"></td>
+      <td><input data-role="burn" data-i="${i}" value="${blank0(leg.burn)}"></td>
       <td><input class="wide" data-role="landing" data-i="${i}" value=""></td>
     `;
     body.appendChild(tr);
@@ -425,13 +426,13 @@ function onRouteInput(e){
     legs[i].gal = parseFloat(e.target.value) || 0;
     legs[i].lbs = legs[i].gal * 6.7;
     const lbsInput = document.querySelector(`[data-role="lbs"][data-i="${i}"]`);
-    if(lbsInput) lbsInput.value = legs[i].lbs.toFixed(0);
+    if(lbsInput) lbsInput.value = legs[i].lbs ? legs[i].lbs.toFixed(0) : '';
   }
   if(role==='lbs'){
     legs[i].lbs = parseFloat(e.target.value) || 0;
     legs[i].gal = legs[i].lbs / 6.7;
     const galInput = document.querySelector(`[data-role="gal"][data-i="${i}"]`);
-    if(galInput) galInput.value = legs[i].gal.toFixed(1).replace(/\.0$/,'');
+    if(galInput) galInput.value = legs[i].gal ? legs[i].gal.toFixed(1).replace(/\.0$/,'') : '';
   }
   if(role==='burn'){
     legs[i].burn = parseFloat(e.target.value) || 0;
@@ -455,7 +456,7 @@ function onRouteInput(e){
         legs[i].burn = takeoff - newLanding;
       }
       const burnInput = document.querySelector(`[data-role="burn"][data-i="${i}"]`);
-      if(burnInput) burnInput.value = legs[i].burn.toFixed(0);
+      if(burnInput) burnInput.value = legs[i].burn ? legs[i].burn.toFixed(0) : '';
       suppressRecalc = false;
     }
   }
@@ -527,8 +528,8 @@ function buildPayloadTable(){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="label">Leg ${i+1}</td>
-      <td><input data-role="pax" data-i="${i}" value="${leg.pax}"></td>
-      <td><input data-role="bags" data-i="${i}" value="${leg.bags}"></td>
+      <td><input data-role="pax" data-i="${i}" value="${leg.pax || ''}"></td>
+      <td><input data-role="bags" data-i="${i}" value="${leg.bags || ''}"></td>
       ${ordered.map(t => `
         <td data-tail="${t}"><span class="computed" id="pay-to-${t}-${i}"></span></td>
         <td data-tail="${t}"><span class="computed" id="pay-ldg-${t}-${i}"></span></td>
